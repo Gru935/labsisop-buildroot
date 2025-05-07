@@ -13,8 +13,8 @@
 #include <linux/fs.h>             // Header for the Linux file system support
 #include <linux/uaccess.h>
 
-#define  DEVICE_NAME "simple_driver" ///< The device will appear at /dev/simple_driver using this value
-#define  CLASS_NAME  "simple_class"        ///< The device class -- this is a character device driver
+#define  DEVICE_NAME "xtea_driver" ///< The device will appear at /dev/simple_driver using this value
+#define  CLASS_NAME  "xtea_class"        ///< The device class -- this is a character device driver
 
 MODULE_LICENSE("GPL");            ///< The license type -- this affects available functionality
 MODULE_AUTHOR("Author Name");    ///< The author -- visible when you use modinfo
@@ -33,6 +33,7 @@ static int     dev_open(struct inode *, struct file *);
 static int     dev_release(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
 static ssize_t dev_write(struct file *, const char *, size_t, loff_t *);
+static int num_rounds = 32;
 
 
 /** @brief Devices are represented as file structure in the kernel. The file_operations structure from
@@ -46,6 +47,32 @@ static struct file_operations fops =
 	.write = dev_write,
 	.release = dev_release,
 };
+
+static void encipher(uint32_t num_rounds, uint32_t v[2], const uint32_t key[4]) {
+	uint32_t i, v0 = v[0], v1 = v[1], sum = 0, delta = 0x9E3779B9;
+	for (i = 0; i < num_rounds; i++) {
+		v0 += (((v1 << 4) ^ (v1 >> 5)) + v1) ^ (sum + key[sum & 3]);
+		sum += delta;
+		v1 += (((v0 << 4) ^ (v0 >> 5)) + v0) ^ (sum + key[(sum >> 11) & 3]);
+	}
+	v[0] = v0;
+	v[1] = v1;
+}
+
+static void decipher(uint32_t num_rounds, uint32_t v[2], const uint32_t key[4]) {
+	uint32_t v0 = v[0], v1 = v[1];
+	uint32_t delta = 0x9E3779B9;
+	uint32_t sum = delta * num_rounds;
+	uint32_t i;
+	for (i = 0; i < num_rounds; i++) {
+		v1 -= (((v0 << 4) ^ (v0 >> 5)) + v0) ^ (sum + key[(sum >> 11) & 3]);
+		sum -= delta;
+		v0 -= (((v1 << 4) ^ (v1 >> 5)) + v1) ^ (sum + key[sum & 3]);
+	}
+	v[0] = v0;
+	v[1] = v1;
+}
+
 
 
 /** @brief The LKM initialization function
@@ -149,20 +176,83 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
  *  @param len The length of the array of data that is being passed in the const char buffer
  *  @param offset The offset if required
  */
-static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
-	if (len < sizeof(message)){
-		sprintf(message, "%s(%zu letters)", buffer, len);   // appending received string with its length
-		size_of_message = strlen(message);                 // store the length of the stored message
-		printk(KERN_INFO "Simple Driver: received %zu characters from the user\n", len);
-		
-		return len;
-	}else{
-		sprintf(message, "(0 letters)");
-		printk(KERN_INFO "Simple Driver: too many characters to deal with\n", len);
-		
-		return 0;
-	}
+ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
+    char input[256];
+    uint32_t key[4], data_size;
+    char command[4];
+    int i, ret;
+
+    if (len >= sizeof(input)) return -EINVAL;
+    if (copy_from_user(input, buffer, len)) return -EFAULT;
+    input[len] = '\0';
+
+    // Parse comando, chave e tamanho
+    ret = sscanf(input, "%3s %x %x %x %x %u", command, &key[0], &key[1], &key[2], &key[3], &data_size);
+    if (ret != 6) {
+        printk(KERN_INFO "XTEA Driver: Invalid input format\n");
+        return -EINVAL;
+    }
+
+    // Pular os tokens iniciais até encontrar os dados
+    char *data_ptr = input;
+    int token_count = 0;
+    while (token_count < 6 && *data_ptr) {
+        if (*data_ptr == ' ') token_count++;
+        data_ptr++;
+    }
+
+    if (!*data_ptr) {
+        printk(KERN_INFO "XTEA Driver: Missing data payload\n");
+        return -EINVAL;
+    }
+
+    // Verificação do tamanho do dado
+    if (data_size % 8 != 0) {
+        printk(KERN_INFO "XTEA Driver: data_size must be multiple of 8 bytes\n");
+        return -EINVAL;
+    }
+
+    size_t num_blocks = data_size / 8;
+    uint32_t blocks[num_blocks][2]; // cada bloco tem 2 x 32 bits = 64 bits = 8 bytes
+
+    // Converter string hex para blocos binários
+    for (i = 0; i < num_blocks; i++) {
+        unsigned int high, low;
+        if (sscanf(data_ptr, "%8x%8x", &high, &low) != 2) {
+            printk(KERN_INFO "XTEA Driver: Failed to parse hex data at block %d\n", i);
+            return -EINVAL;
+        }
+        blocks[i][0] = high;
+        blocks[i][1] = low;
+        data_ptr += 16; // avançar 16 caracteres hexadecimais (8+8)
+    }
+
+    // Criptografar ou descriptografar
+    if (strcmp(command, "enc") == 0) {
+        for (i = 0; i < num_blocks; i++) {
+            encipher(num_rounds, blocks[i], key);
+        }
+    } else if (strcmp(command, "dec") == 0) {
+        for (i = 0; i < num_blocks; i++) {
+            decipher(num_rounds, blocks[i], key);
+        }
+    } else {
+        printk(KERN_WARNING "XTEA Driver: Unknown command '%s'\n", command);
+        return -EINVAL;
+    }
+
+    // Gerar string de saída (em hexadecimal)
+    char *out_ptr = message;
+    for (i = 0; i < num_blocks; i++) {
+        out_ptr += sprintf(out_ptr, "%08x%08x", blocks[i][0], blocks[i][1]);
+    }
+
+    size_of_message = strlen(message);
+    printk(KERN_INFO "XTEA Driver: Operation '%s' completed. Output: %s\n", command, message);
+
+    return len;
 }
+
 
 /** @brief The device release function that is called whenever the device is closed/released by
  *  the userspace program
