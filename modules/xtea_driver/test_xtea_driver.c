@@ -20,9 +20,7 @@ int main(){
 		return errno;
 	}
 
-	// Exemplo de entrada: enc 00112233 44556677 8899aabb ccddeeff 8 0001020304050607
-	//                     ^^^ comando,  ^ chave 128 bits ^ , tamanho,  ^ dado 8 bytes
-	printf("Enter command to send (format: enc <k0> <k1> <k2> <k3> <size> <hexdata>):\n");
+	printf("Enter command to send (format: enc/dec <size> <hexdata>):\n");
 	scanf(" %[^\n]%*c", stringToSend);
 
 	printf("Sending to driver: [%s]\n", stringToSend);
@@ -39,7 +37,12 @@ int main(){
 		return errno;
 	}
 
-	printf("Encrypted output: [%s]\n", receive);
+	printf("Encrypted output: [");
+    for (int i = 0; i < ret; i++) {
+        printf("%02x", (unsigned char)receive[i]);
+    }
+    printf("]\n");
+	
 	printf("End of program.\n");
 	return 0;
 }

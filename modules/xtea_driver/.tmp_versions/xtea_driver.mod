@@ -1,3 +1,3 @@
-/workspaces/labsisop-buildroot/modules/simple_driver/xtea_driver.ko
-/workspaces/labsisop-buildroot/modules/simple_driver/xtea_driver.o
+/workspaces/labsisop-buildroot/modules/xtea_driver/xtea_driver.ko
+/workspaces/labsisop-buildroot/modules/xtea_driver/xtea_driver.o
 
