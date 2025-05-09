@@ -1,6 +1,6 @@
 obj-m := sstfOriginal.o
 BUILDROOT_DIR := ../..
-KDIR := $(BUILDROOT_DIR)/output/build/linux-4.13.9
+KDIR := $(BUILDROOT_DIR)/output/build/linux-custom
 COMPILER := $(BUILDROOT_DIR)/output/host/bin/i686-buildroot-linux-gnu-gcc
 
 all:
