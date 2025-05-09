@@ -60,50 +60,17 @@ static int sstf_dispatch(struct request_queue *q, int force){
 	return 0;
 }
 
-
 static void sstf_add_request(struct request_queue *q, struct request *rq){
 	struct sstf_data *nd = q->elevator->elevator_data;
-	// char direction = 'R';
 
 
 	list_add_tail(&rq->queuelist, &nd->queue);
 	printk(KERN_EMERG "[SSTF] add %llu\n", blk_rq_pos(rq));
 }
 
-// static void sstf_add_request(struct request_queue *q, struct request *rq) {
-// 	struct sstf_data *nd = q->elevator->elevator_data;
-// // char direction = 'R';
-
-// 	sector_t setor_rq = blk_rq_pos(rq); 
-// 	struct list_head *posicao_fila;
-// 	struct request *rq_iter;
-// 	sector_t setor_iter;
-
-// 	list_for_each(posicao_fila, &nd->queue) {
-// 		rq_iter = list_entry(posicao_fila, struct request, queuelist);
-// 		setor_iter = blk_rq_pos(rq_iter);
-
-// 		if (abs(setor_rq - nd->ultimo_acesso) < abs(setor_iter - nd->ultimo_acesso)) {
-// 			list_add_tail(&rq->queuelist, posicao_fila);
-// 			printk(KERN_EMERG "[SSTF] add %llu\n", blk_rq_pos(rq));
-
-// 			return;
-// 		}
-// 	}
-
-// 	list_add_tail(&rq->queuelist, &nd->queue);
-// 	printk(KERN_EMERG "[SSTF] add %llu\n", blk_rq_pos(rq));
-// }
-
 static int sstf_init_queue(struct request_queue *q, struct elevator_type *e){
 	struct sstf_data *nd;
 	struct elevator_queue *eq;
-
-	/* Implementação da inicialização da fila (queue).
-	 *
-	 * Use como exemplo a inicialização da fila no driver noop-iosched.c
-	 *
-	 */
 
 	eq = elevator_alloc(q, e);
 	if (!eq)
@@ -131,11 +98,6 @@ static void sstf_exit_queue(struct elevator_queue *e)
 {
 	struct sstf_data *nd = e->elevator_data;
 
-	/* Implementação da finalização da fila (queue).
-	 *
-	 * Use como exemplo o driver noop-iosched.c
-	 *
-	 */
 	BUG_ON(!list_empty(&nd->queue));
 	kfree(nd);
 }

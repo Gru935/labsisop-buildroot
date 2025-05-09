@@ -7,7 +7,7 @@
 
 #define SECTOR_SIZE 512
 #define NUM_PROCESSES 1000
-#define DISK "/dev/sdb"  // Substitua pelo dispositivo correto
+#define DISK "/dev/sdb"
 
 int main() {
     off_t setores[NUM_PROCESSES];
@@ -16,7 +16,7 @@ int main() {
     // Gera os setores aleatórios e imprime na ordem gerada
     for (int i = 0; i < NUM_PROCESSES; i++) {
         setores[i] = rand() % 2000000;
-        printf("%d\n", (int)setores[i]);  // <-- Ordem de chegada (para gráfico)
+        // printf("%d\n", (int)setores[i]);
     }
 
     // Cria os processos e faz as leituras
