@@ -6,12 +6,12 @@ COMPILER := $(BUILDROOT_DIR)/output/host/bin/i686-buildroot-linux-gnu-gcc
 all:
 	$(MAKE) -C $(KDIR) M=$$PWD
 	$(MAKE) -C $(KDIR) M=$$PWD modules_install INSTALL_MOD_PATH=../../target
-	$(COMPILER) -o test_sstf test_sstf.c
-	cp test_sstf $(BUILDROOT_DIR)/output/target/bin
+	$(COMPILER) -o sector_read sector_read.c
+	cp sector_read $(BUILDROOT_DIR)/output/target/bin
 	
 clean:
 	rm -f *.o *.ko .*.cmd
 	rm -f modules.order
 	rm -f Module.symvers
 	rm -f sstfOriginal.mod.c
-	rm -f test_sstf
+	rm -f sector_read
